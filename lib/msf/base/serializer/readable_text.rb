@@ -20,18 +20,18 @@ class ReadableText
   # @return [String] formatted text output of the dump.
   def self.dump_module(mod, indent = "  ")
     case mod.type
-      when MODULE_PAYLOAD
+      when Msf::MODULE_PAYLOAD
         return dump_payload_module(mod, indent)
-      when MODULE_NOP
+      when Msf::MODULE_NOP
         return dump_basic_module(mod, indent)
-      when MODULE_ENCODER
+      when Msf::MODULE_ENCODER
         return dump_basic_module(mod, indent)
-      when MODULE_EXPLOIT
+      when Msf::MODULE_EXPLOIT
         return dump_exploit_module(mod, indent)
-      when MODULE_AUX
+      when Msf::MODULE_AUX
         return dump_auxiliary_module(mod, indent)
-      when MODULE_POST
-        return dump_basic_module(mod, indent)
+      when Msf::MODULE_POST
+        return dump_post_module(mod, indent)
       else
         return dump_generic_module(mod, indent)
     end
@@ -84,14 +84,14 @@ class ReadableText
     tbl.to_s + "\n"
   end
 
-  # Dumps an auxiliary's actions
+  # Dumps a module's actions
   #
-  # @param mod [Msf::Auxiliary] the auxiliary module.
+  # @param mod [Msf::Module] the module.
   # @param indent [String] the indentation to use (only the length
   #   matters)
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
-  def self.dump_auxiliary_actions(mod, indent = '', h = nil)
+  def self.dump_module_actions(mod, indent = '', h = nil)
     tbl = Rex::Ui::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
@@ -104,6 +104,28 @@ class ReadableText
     mod.actions.each_with_index { |target, idx|
       tbl << [ target.name || 'All' , target.description || '' ]
     }
+
+    tbl.to_s + "\n"
+  end
+
+  # Dumps the module's selected action
+  #
+  # @param mod [Msf::Module] the module.
+  # @param indent [String] the indentation to use (only the length
+  #   matters)
+  # @param h [String] the string to display as the table heading.
+  # @return [String] the string form of the table.
+  def self.dump_module_action(mod, indent = '', h = nil)
+    tbl = Rex::Ui::Text::Table.new(
+      'Indent'  => indent.length,
+      'Header'  => h,
+      'Columns' =>
+        [
+          'Name',
+          'Description',
+        ])
+
+    tbl << [ mod.action.name || 'All', mod.action.description || '' ]
 
     tbl.to_s + "\n"
   end
@@ -146,6 +168,7 @@ class ReadableText
     output << " Privileged: " + (mod.privileged? ? "Yes" : "No") + "\n"
     output << "    License: #{mod.license}\n"
     output << "       Rank: #{mod.rank_to_s.capitalize}\n"
+    output << "  Disclosed: #{mod.disclosure_date}\n" if mod.disclosure_date
     output << "\n"
 
     # Authors
@@ -201,6 +224,7 @@ class ReadableText
     output << "     Module: #{mod.fullname}\n"
     output << "    License: #{mod.license}\n"
     output << "       Rank: #{mod.rank_to_s.capitalize}\n"
+    output << "  Disclosed: #{mod.disclosure_date}\n" if mod.disclosure_date
     output << "\n"
 
     # Authors
@@ -209,6 +233,58 @@ class ReadableText
       output << indent + author.to_s + "\n"
     }
     output << "\n"
+
+    # Actions
+    if mod.action
+      output << "Available actions:\n"
+      output << dump_module_actions(mod, indent)
+    end
+
+    # Options
+    if (mod.options.has_options?)
+      output << "Basic options:\n"
+      output << dump_options(mod, indent)
+      output << "\n"
+    end
+
+    # Description
+    output << "Description:\n"
+    output << word_wrap(Rex::Text.compress(mod.description))
+    output << "\n"
+
+    # References
+    output << dump_references(mod, indent)
+
+    return output
+  end
+
+  # Dumps information about a post module.
+  #
+  # @param mod [Msf::Post] the post module.
+  # @param indent [String] the indentation to use.
+  # @return [String] the string form of the information.
+  def self.dump_post_module(mod, indent = '')
+    output  = "\n"
+    output << "       Name: #{mod.name}\n"
+    output << "     Module: #{mod.fullname}\n"
+    output << "   Platform: #{mod.platform_to_s}\n"
+    output << "       Arch: #{mod.arch_to_s}\n"
+    output << "       Rank: #{mod.rank_to_s.capitalize}\n"
+    output << "  Disclosed: #{mod.disclosure_date}\n" if mod.disclosure_date
+    output << "\n"
+
+    # Authors
+    output << "Provided by:\n"
+    mod.each_author { |author|
+      output << indent + author.to_s + "\n"
+    }
+    output << "\n"
+
+    # Actions
+    if mod.action
+      output << "Available actions:\n"
+      output << dump_module_actions(mod, indent)
+    end
 
     # Options
     if (mod.options.has_options?)
@@ -311,8 +387,9 @@ class ReadableText
   #
   # @param mod [Msf::Module] the module.
   # @param indent [String] the indentation to use.
+  # @param missing [Boolean] dump only empty required options.
   # @return [String] the string form of the information.
-  def self.dump_options(mod, indent = '')
+  def self.dump_options(mod, indent = '', missing = false)
     tbl = Rex::Ui::Text::Table.new(
       'Indent'  => indent.length,
       'Columns' =>
@@ -325,13 +402,13 @@ class ReadableText
 
     mod.options.sorted.each { |entry|
       name, opt = entry
+      val = mod.datastore[name] || opt.default
 
       next if (opt.advanced?)
       next if (opt.evasion?)
+      next if (missing && opt.valid?(val))
 
-      val_display = opt.display_value(mod.datastore[name] || opt.default)
-
-      tbl << [ name, val_display, opt.required? ? "yes" : "no", opt.desc ]
+      tbl << [ name, opt.display_value(val), opt.required? ? "yes" : "no", opt.desc ]
     }
 
     return tbl.to_s
@@ -450,6 +527,8 @@ class ReadableText
     indent = opts[:indent] || DefaultIndent
     col = opts[:col] || DefaultColumnWrap
 
+    return dump_sessions_verbose(framework, opts) if verbose
+
     columns =
       [
         'Id',
@@ -457,8 +536,6 @@ class ReadableText
         'Information',
         'Connection'
       ]
-
-    columns << 'Via' if verbose
 
     tbl = Rex::Ui::Text::Table.new(
       'Indent'  => indent,
@@ -476,9 +553,8 @@ class ReadableText
 
       row = [ session.sid.to_s, session.type.to_s, sinfo, session.tunnel_to_s + " (#{session.session_host})" ]
       if session.respond_to? :platform
-        row[1] += " " + session.platform
+        row[1] << (" " + session.platform)
       end
-      row << session.via_exploit if verbose and session.via_exploit
 
       tbl << row
     }
@@ -486,10 +562,77 @@ class ReadableText
     return framework.sessions.length > 0 ? tbl.to_s : "#{tbl.header_to_s}No active sessions.\n"
   end
 
+  # Dumps the list of active sessions in verbose mode
+  #
+  # @param framework [Msf::Framework] the framework to dump.
+  # @param opts [Hash] the options to dump with.
+  # @option opts :session_ids [Array] the list of sessions to dump (no
+  #   effect).
+  # @return [String] the formatted list of sessions.
+  def self.dump_sessions_verbose(framework, opts={})
+    ids = (opts[:session_ids] || framework.sessions.keys).sort
+
+    out = "Active sessions\n" +
+          "===============\n\n"
+
+    if framework.sessions.length == 0
+      out << "No active sessions.\n"
+      return out
+    end
+
+    framework.sessions.each_sorted do |k|
+      session = framework.sessions[k]
+
+      sess_info    = session.info.to_s
+      sess_id      = session.sid.to_s
+      sess_tunnel  = session.tunnel_to_s + " (#{session.session_host})"
+      sess_via     = session.via_exploit.to_s
+      sess_type    = session.type.to_s
+      sess_uuid    = session.payload_uuid.to_s
+      sess_puid    = session.payload_uuid.respond_to?(:puid_hex) ? session.payload_uuid.puid_hex : nil
+
+      sess_checkin = "<none>"
+      sess_machine_id = session.machine_id.to_s
+      sess_registration = "No"
+
+      if session.respond_to? :platform
+        sess_type << (" " + session.platform)
+      end
+
+      if session.respond_to?(:last_checkin) && session.last_checkin
+        sess_checkin = "#{(Time.now.to_i - session.last_checkin.to_i)}s ago @ #{session.last_checkin.to_s}"
+      end
+
+      if session.payload_uuid.respond_to?(:puid_hex) && (uuid_info = framework.uuid_db[sess_puid])
+        sess_registration = "Yes"
+        if uuid_info['name']
+          sess_registration << " - Name=\"#{uuid_info['name']}\""
+        end
+      end
+
+      out << "  Session ID: #{sess_id}\n"
+      out << "        Type: #{sess_type}\n"
+      out << "        Info: #{sess_info}\n"
+      out << "      Tunnel: #{sess_tunnel}\n"
+      out << "         Via: #{sess_via}\n"
+      out << "        UUID: #{sess_uuid}\n"
+      out << "   MachineID: #{sess_machine_id}\n"
+      out << "     CheckIn: #{sess_checkin}\n"
+      out << "  Registered: #{sess_registration}\n"
+
+
+
+      out << "\n"
+    end
+
+    out << "\n"
+    return out
+  end
+
   # Dumps the list of running jobs.
   #
   # @param framework [Msf::Framework] the framework.
-  # @param verbose [Boolean] if true, also prints the payload, LPORT, URIPATH 
+  # @param verbose [Boolean] if true, also prints the payload, LPORT, URIPATH
   #   and start time, if they exist, for each job.
   # @param indent [Integer] the indentation amount.
   # @param col [Integer] the column wrap width.

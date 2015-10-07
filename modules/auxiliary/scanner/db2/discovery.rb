@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -31,9 +31,7 @@ class Metasploit3 < Msf::Auxiliary
     begin
 
       connect_udp
-
       udp_sock.put(pkt)
-
       res = udp_sock.read(1024).split(/\x00/)
 
       if (res)

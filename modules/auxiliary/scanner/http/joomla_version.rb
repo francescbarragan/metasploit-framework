@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 require 'msf/core'
@@ -30,7 +30,7 @@ class Metasploit3 < Msf::Auxiliary
 
   def os_fingerprint(response)
     if not response.headers.has_key?('Server')
-      return "Unkown OS (No Server Header)"
+      return "Unknown OS (No Server Header)"
     end
 
     case response.headers['Server']

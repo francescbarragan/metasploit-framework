@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -40,7 +40,6 @@ class Metasploit3 < Msf::Auxiliary
 
     if vim_do_login(datastore['USERNAME'], datastore['PASSWORD']) == :success
       output = "VMWare Host at #{ip} details\n"
-      output << "-----------------------------\n"
       host_summary = vim_get_all_host_summary(datastore['HW_DETAILS'])
       output << YAML.dump(host_summary)
       print_good output

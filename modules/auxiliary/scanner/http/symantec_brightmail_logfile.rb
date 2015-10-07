@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -118,7 +118,7 @@ class Metasploit3 < Msf::Auxiliary
       return
     end
 
-    vprint_line("")
+    vprint_line
     vprint_line(res.body)
 
     f = ::File.basename(fname)

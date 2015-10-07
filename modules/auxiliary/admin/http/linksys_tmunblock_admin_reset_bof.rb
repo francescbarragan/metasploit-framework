@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -20,8 +20,8 @@ class Metasploit3 < Msf::Auxiliary
       },
       'Author'          =>
         [
-          'Craig Heffner',  #vulnerability discovery and original exploit
-          'Michael Messner <devnull[at]s3cur1ty.de>'  #metasploit module
+          'Craig Heffner',  # vulnerability discovery and original exploit
+          'Michael Messner <devnull[at]s3cur1ty.de>'  # metasploit module
         ],
       'License'         => MSF_LICENSE,
       'References'      =>

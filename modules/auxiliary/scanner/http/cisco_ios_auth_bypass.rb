@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -29,7 +29,7 @@ class Metasploit3 < Msf::Auxiliary
         control. IOS 11.3 -> 12.2 are reportedly vulnerable. This module
         tested successfully against a Cisco 1600 Router IOS v11.3(11d).
       },
-      'Author'		=> [ 'Patrick Webster <patrick[at]aushack.com>', 'hdm' ],
+      'Author'		=> [ 'patrick', 'hdm' ],
       'License'		=> MSF_LICENSE,
       'References'	=>
         [

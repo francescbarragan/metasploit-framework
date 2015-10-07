@@ -77,8 +77,22 @@ module Msf::HTTP::Wordpress::URIs
   #
   # @return [String] Wordpress Admin Ajax URL
   def wordpress_url_admin_ajax
-    normalize_uri(target_uri.path, 'wp-admin', 'admin-ajax.php')
+    normalize_uri(wordpress_url_backend, 'admin-ajax.php')
   end
+
+  # Returns the Wordpress Admin Posts URL
+  #
+  # @return [String] Wordpress Admin Post URL
+  def wordpress_url_admin_post
+    normalize_uri(wordpress_url_backend, 'admin-post.php')
+  end
+
+  # Returns the Wordpress Admin Update URL
+  #
+  # @return [String] Wordpress Admin Update URL
+  def wordpress_url_admin_update
+    normalize_uri(wordpress_url_backend, 'update.php')
+  end  
 
   # Returns the Wordpress wp-content dir URL
   #
@@ -99,6 +113,13 @@ module Msf::HTTP::Wordpress::URIs
   # @return [String] Wordpress themes dir URL
   def wordpress_url_themes
     normalize_uri(wordpress_url_wp_content, 'themes')
+  end
+
+  # Returns the Wordpress XMLRPC URL
+  #
+  # @return [String] Wordpress XMLRPC URL
+  def wordpress_url_xmlrpc
+    normalize_uri(target_uri.path, 'xmlrpc.php')
   end
 
 end

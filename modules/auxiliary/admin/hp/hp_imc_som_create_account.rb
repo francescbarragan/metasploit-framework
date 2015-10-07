@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -69,6 +69,32 @@ class Metasploit3 < Msf::Auxiliary
     end
 
     return nil
+  end
+
+  def report_cred(opts)
+    service_data = {
+      address: opts[:ip],
+      port: opts[:port],
+      service_name: opts[:service_name],
+      protocol: 'tcp',
+      workspace_id: myworkspace_id
+    }
+
+    credential_data = {
+      origin_type: :service,
+      module_fullname: fullname,
+      username: opts[:user],
+      private_data: opts[:password],
+      private_type: :password
+    }.merge(service_data)
+
+    login_data = {
+      core: create_credential(credential_data),
+      status: Metasploit::Model::Login::Status::UNTRIED,
+      proof: opts[:proof]
+    }.merge(service_data)
+
+    create_credential_login(login_data)
   end
 
   def run
@@ -232,15 +258,15 @@ class Metasploit3 < Msf::Auxiliary
       login_url = ssl ? "https://" : "http://"
       login_url << "#{rhost}:#{rport}/servicedesk/ServiceDesk.jsp"
 
-      report_auth_info({
-        :host => rhost,
-        :port => rport,
-        :user => datastore["USERNAME"],
-        :pass => datastore["PASSWORD"],
-        :type => "password",
-        :sname => (ssl ? "https" : "http"),
-        :proof => "#{login_url}\n#{res.body}"
-      })
+      report_cred(
+        ip: rhost,
+        port: rport,
+        service_name: (ssl ? "https" : "http"),
+        user: datastore['USERNAME'],
+        password: datastore['PASSWORD'],
+        proof: "#{login_url}\n#{res.body}"
+      )
+
       print_good("#{peer} - Account #{datastore["USERNAME"]}/#{datastore["PASSWORD"]} created successfully.")
       print_status("#{peer} - Use it to log into #{login_url}")
     end

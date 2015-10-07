@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -176,7 +176,7 @@ class Metasploit3 < Msf::Auxiliary
         end
       end
 
-      #database links
+      # database links
       res = send_request_raw({
         'uri'     => '/oradb/PUBLIC/ALL_DB_LINKS',
         'version' => '1.1',

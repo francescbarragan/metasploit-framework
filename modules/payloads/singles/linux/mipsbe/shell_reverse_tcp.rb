@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -9,6 +9,8 @@ require 'msf/base/sessions/command_shell'
 require 'msf/base/sessions/command_shell_options'
 
 module Metasploit3
+
+  CachedSize = 184
 
   include Msf::Payload::Single
   include Msf::Payload::Linux
@@ -25,7 +27,7 @@ module Metasploit3
         ],
       'References'    =>
         [
-          'EDB' => '18226',
+          ['EDB', '18226']
         ],
       'License'       => MSF_LICENSE,
       'Platform'      => 'linux',

@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -26,7 +26,6 @@ class Metasploit3 < Msf::Auxiliary
       },
       'Author'         =>
         [
-          'Alligator Security Team',
           'Heyder Andrade <heyder.andrade[at]gmail.com>',
           'Leandro Oliveira <leandrofernando[at]gmail.com>'
         ],

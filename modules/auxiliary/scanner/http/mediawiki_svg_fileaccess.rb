@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -34,9 +34,9 @@ class Metasploit4 < Msf::Auxiliary
         ],
       'Author'       =>
         [
-          'Daniel Franke',       # Vulnerability discovery and PoC
-          'juan vazquez',        # Metasploit module
-          'Christian Mehlmauer'  # Metasploit module
+          'Daniel Franke',      # Vulnerability discovery and PoC
+          'juan vazquez',       # Metasploit module
+          'Christian Mehlmauer' # Metasploit module
         ],
       'License'      => MSF_LICENSE
     )

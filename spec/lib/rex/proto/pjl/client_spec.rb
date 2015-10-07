@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'fastlib'
 require 'msfenv'
 require 'msf/base'
 require 'rex/proto/pjl'
@@ -23,7 +22,7 @@ describe Rex::Proto::PJL::Client do
 
     context "#initialize" do
       it "should initialize a 'sock' ivar" do
-        cli.instance_variable_get(:@sock).class.should eq(RSpec::Mocks::Mock)
+        cli.instance_variable_get(:@sock).class.should eq(RSpec::Mocks::Double)
       end
     end
 
@@ -44,7 +43,7 @@ describe Rex::Proto::PJL::Client do
         expect { cli.info(nil) }.to raise_error(ArgumentError)
       end
 
-      it "should receive a response for an INFO request" do				
+      it "should receive a response for an INFO request" do
         cli.info(:id).should eq(default_response)
       end
     end
@@ -97,8 +96,23 @@ describe Rex::Proto::PJL::Client do
       end
     end
 
+    context "#fsquery" do
+      it "should raise an exception due to an invalid path" do
+        expect { cli.fsquery("BAD") }.to raise_error(ArgumentError)
+      end
+
+      it "should query a file" do
+        response = "TYPE=FILE SIZE=1337\r\n\f"
+        tmp_sock = double("sock")
+        tmp_sock.stub(:put).with(an_instance_of(String))
+        tmp_sock.stub(:get).with(Rex::Proto::PJL::DEFAULT_TIMEOUT).and_return(response)
+        tmp_cli = Rex::Proto::PJL::Client.new(tmp_sock)
+        tmp_cli.fsquery("1:").should eq(true)
+      end
+    end
+
     context "#fsdirlist" do
-      it "should reaise an exception due to an invaid path name" do
+      it "should reaise an exception due to an invalid path" do
         expect { cli.fsdirlist("BAD") }.to raise_error(ArgumentError)
       end
 
@@ -113,7 +127,7 @@ describe Rex::Proto::PJL::Client do
     end
 
     context "#fsupload" do
-      it "should raise an exception due to an invalid path name" do
+      it "should raise an exception due to an invalid path" do
         expect { cli.fsupload("BAD") }.to raise_error(ArgumentError)
       end
 
@@ -124,6 +138,36 @@ describe Rex::Proto::PJL::Client do
         tmp_sock.stub(:get).with(Rex::Proto::PJL::DEFAULT_TIMEOUT).and_return(response)
         tmp_cli = Rex::Proto::PJL::Client.new(tmp_sock)
         tmp_cli.fsupload("1:").should eq('FILE')
+      end
+    end
+
+    context "#fsdownload" do
+      it "should raise an exception due to an invalid path" do
+        expect { cli.fsdownload("/dev/null", "BAD") }.to raise_error(ArgumentError)
+      end
+
+      it "should upload a file" do
+        response = "TYPE=FILE SIZE=1337\r\n\f"
+        tmp_sock = double("sock")
+        tmp_sock.stub(:put).with(an_instance_of(String))
+        tmp_sock.stub(:get).with(Rex::Proto::PJL::DEFAULT_TIMEOUT).and_return(response)
+        tmp_cli = Rex::Proto::PJL::Client.new(tmp_sock)
+        tmp_cli.fsdownload("/dev/null", "1:").should eq(true)
+      end
+    end
+
+    context "#fsdelete" do
+      it "should raise an exception due to an invalid path" do
+        expect { cli.fsdelete("BAD") }.to raise_error(ArgumentError)
+      end
+
+      it "should delete a file" do
+        response = "FILEERROR=3\r\n\f"
+        tmp_sock = double("sock")
+        tmp_sock.stub(:put).with(an_instance_of(String))
+        tmp_sock.stub(:get).with(Rex::Proto::PJL::DEFAULT_TIMEOUT).and_return(response)
+        tmp_cli = Rex::Proto::PJL::Client.new(tmp_sock)
+        tmp_cli.fsdelete("1:").should eq(true)
       end
     end
   end

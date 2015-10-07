@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -8,8 +8,8 @@ require 'msf/core'
 class Metasploit3 < Msf::Auxiliary
 
   # Exploit mixins should be called first
-  include Msf::Exploit::Remote::SMB
-  include Msf::Exploit::Remote::SMB::Authenticated
+  include Msf::Exploit::Remote::SMB::Client
+  include Msf::Exploit::Remote::SMB::Client::Authenticated
   include Msf::Auxiliary::Report
 
   # Aliases for common classes
@@ -22,7 +22,7 @@ class Metasploit3 < Msf::Auxiliary
     super(
       'Name'        => 'SMB File Download Utility',
       'Description' => %Q{
-        This module deletes a file from a target share and path. The usual reason
+        This module downloads a file from a target share and path. The usual reason
       to use this module is to work around limitations in an existing SMB client that may not
       be able to take advantage of pass-the-hash style authentication.
       },

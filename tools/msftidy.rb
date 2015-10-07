@@ -12,6 +12,16 @@ require 'time'
 
 CHECK_OLD_RUBIES = !!ENV['MSF_CHECK_OLD_RUBIES']
 SUPPRESS_INFO_MESSAGES = !!ENV['MSF_SUPPRESS_INFO_MESSAGES']
+TITLE_WHITELIST = %w{
+  a an and as at avserve callmenum configdir connect debug docbase dtspcd
+  execve file for from getinfo goaway gsad hetro historysearch htpasswd ibstat
+  id in inetd iseemedia jhot libxslt lmgrd lnk load main map migrate mimencode
+  multisort name net netcat nodeid ntpd nttrans of on onreadystatechange or
+  ovutil path pbot pfilez pgpass pingstr pls popsubfolders prescan readvar
+  relfile rev rexec rlogin rsh rsyslog sa sadmind say sblistpack spamd
+  sreplace tagprinter the tnftp to twikidraw udev uplay user username via
+  welcome with ypupdated zsudo
+}
 
 if CHECK_OLD_RUBIES
   require 'rvm'
@@ -47,11 +57,16 @@ class Msftidy
   WARNINGS = 0x10
   ERRORS   = 0x20
 
+  # Some compiles regexes
+  REGEX_MSF_EXPLOIT = / \< Msf::Exploit/
+  REGEX_IS_BLANK_OR_END = /^\s*end\s*$/
+
   attr_reader :full_filepath, :source, :stat, :name, :status
 
   def initialize(source_file)
     @full_filepath = source_file
     @source  = load_file(source_file)
+    @lines   = @source.lines # returns an enumerator
     @status  = OK
     @name    = File.basename(source_file)
   end
@@ -110,7 +125,7 @@ class Msftidy
   end
 
   def check_shebang
-    if @source.lines.first =~ /^#!/
+    if @lines.first =~ /^#!/
       warn("Module should not have a #! line")
     end
   end
@@ -126,7 +141,7 @@ class Msftidy
     msg = "Using Nokogiri in modules can be risky, use REXML instead."
     has_nokogiri = false
     has_nokogiri_xml_parser = false
-    @source.each_line do |line|
+    @lines.each do |line|
       if has_nokogiri
         if line =~ /Nokogiri::XML\.parse/ or line =~ /Nokogiri::XML::Reader/
           has_nokogiri_xml_parser = true
@@ -143,7 +158,7 @@ class Msftidy
     in_super = false
     in_refs  = false
 
-    @source.each_line do |line|
+    @lines.each do |line|
       if !in_super and line =~ /\s+super\(/
         in_super = true
       elsif in_super and line =~ /[[:space:]]*def \w+[\(\w+\)]*/
@@ -161,7 +176,7 @@ class Msftidy
 
         case identifier
         when 'CVE'
-          warn("Invalid CVE format: '#{value}'") if value !~ /^\d{4}\-\d{4}$/
+          warn("Invalid CVE format: '#{value}'") if value !~ /^\d{4}\-\d{4,}$/
         when 'OSVDB'
           warn("Invalid OSVDB format: '#{value}'") if value !~ /^\d+$/
         when 'BID'
@@ -172,12 +187,14 @@ class Msftidy
           warn("milw0rm references are no longer supported.")
         when 'EDB'
           warn("Invalid EDB reference") if value !~ /^\d+$/
-        when 'WVE'
-          warn("Invalid WVE reference") if value !~ /^\d+\-\d+$/
         when 'US-CERT-VU'
           warn("Invalid US-CERT-VU reference") if value !~ /^\d+$/
         when 'ZDI'
           warn("Invalid ZDI reference") if value !~ /^\d{2}-\d{3}$/
+        when 'WPVDB'
+          warn("Invalid WPVDB reference") if value !~ /^\d+$/
+        when 'PACKETSTORM'
+          warn("Invalid PACKETSTORM reference") if value !~ /^\d+$/
         when 'URL'
           if value =~ /^http:\/\/www\.osvdb\.org/
             warn("Please use 'OSVDB' for '#{value}'")
@@ -189,10 +206,12 @@ class Msftidy
             warn("Please use 'MSB' for '#{value}'")
           elsif value =~ /^http:\/\/www\.exploit\-db\.com\/exploits\//
             warn("Please use 'EDB' for '#{value}'")
-          elsif value =~ /^http:\/\/www\.wirelessve\.org\/entries\/show\/WVE\-/
-            warn("Please use 'WVE' for '#{value}'")
           elsif value =~ /^http:\/\/www\.kb\.cert\.org\/vuls\/id\//
             warn("Please use 'US-CERT-VU' for '#{value}'")
+          elsif value =~ /^https:\/\/wpvulndb\.com\/vulnerabilities\//
+            warn("Please use 'WPVDB' for '#{value}'")
+          elsif value =~ /^http:\/\/packetstormsecurity\.com\/files\//
+            warn("Please use 'PACKETSTORM' for '#{value}'")
           end
         end
       end
@@ -203,7 +222,7 @@ class Msftidy
   # warn if so.  Since Ruby 1.9 this has not been necessary and
   # the framework only suports 1.9+
   def check_rubygems
-    @source.each_line do |line|
+    @lines.each do |line|
       if line_has_require?(line, 'rubygems')
         warn("Explicitly requiring/loading rubygems is not necessary")
         break
@@ -226,7 +245,7 @@ class Msftidy
 
   def check_comment_splat
     if @source =~ /^# This file is part of the Metasploit Framework and may be subject to/
-      warn("Module contains old license comment, use tools/dev/resplat.rb <filename>.")
+      warn("Module contains old license comment.")
     end
   end
 
@@ -234,7 +253,7 @@ class Msftidy
     max_count = 10
     counter   = 0
     if @source =~ /^##/
-      @source.each_line do |line|
+      @lines.each do |line|
         # If exists, the $Id$ keyword should appear at the top of the code.
         # If not (within the first 10 lines), then we assume there's no
         # $Id$, and then bail.
@@ -266,7 +285,7 @@ class Msftidy
     in_super   = false
     in_author  = false
 
-    @source.each_line do |line|
+    @lines.each do |line|
       #
       # Mark our "super" code block
       #
@@ -335,15 +354,6 @@ class Msftidy
     end
   end
 
-  # Explicitly skip this check if we're suppressing info messages
-  # anyway, since it takes a fair amount of time per module to perform.
-  def check_rubocop
-    return true if SUPPRESS_INFO_MESSAGES
-    out = %x{rubocop -n #{@full_filepath}}
-    ret = $?
-    info("Fails to pass Rubocop Ruby style guidelines (run 'rubocop #{@full_filepath}' to see violations)") unless ret.exitstatus == 0
-  end
-
   def check_old_rubies
     return true unless CHECK_OLD_RUBIES
     return true unless Object.const_defined? :RVM
@@ -353,8 +363,37 @@ class Msftidy
     error("Fails alternate Ruby version check") if rubies.size != res.size
   end
 
+  def is_exploit_module?
+    ret = false
+    if @source =~ REGEX_MSF_EXPLOIT
+      # having Msf::Exploit is good indicator, but will false positive on
+      # specs and other files containing the string, but not really acting
+      # as exploit modules, so here we check the file for some actual contents
+      # this could be done in a simpler way, but this let's us add more later
+      msf_exploit_line_no = nil
+      @lines.each_with_index do |line, idx|
+        if line =~ REGEX_MSF_EXPLOIT
+          # note the line number
+          msf_exploit_line_no = idx
+        elsif msf_exploit_line_no
+          # check there is anything but empty space between here and the next end
+          # something more complex could be added here
+          if line !~ REGEX_IS_BLANK_OR_END
+            # if the line is not 'end' and is not blank, prolly exploit module
+            ret = true
+            break
+          else
+            # then keep checking in case there are more than one Msf::Exploit
+            msf_exploit_line_no = nil
+          end
+        end
+      end
+    end
+    ret
+  end
+
   def check_ranking
-    return if @source !~ / \< Msf::Exploit/
+    return unless is_exploit_module?
 
     available_ranks = [
       'ManualRanking',
@@ -393,26 +432,15 @@ class Msftidy
         error('Incorrect disclosure date format')
       end
     else
-      error('Exploit is missing a disclosure date') if @source =~ / \< Msf::Exploit/
+      error('Exploit is missing a disclosure date') if is_exploit_module?
     end
   end
 
   def check_title_casing
-    whitelist = %w{
-      a an and as at avserve callmenum configdir connect debug docbase dtspcd
-      execve file for from getinfo goaway gsad hetro historysearch htpasswd
-      ibstat id in inetd iseemedia jhot libxslt lmgrd lnk load main map
-      migrate mimencode multisort name net netcat nodeid ntpd nttrans of
-      on onreadystatechange or ovutil path pbot pfilez pgpass pingstr pls
-      popsubfolders prescan readvar relfile rev rexec rlogin rsh rsyslog sa
-      sadmind say sblistpack spamd sreplace tagprinter the to twikidraw udev
-      uplay user username via welcome with ypupdated zsudo
-    }
-
     if @source =~ /["']Name["'][[:space:]]*=>[[:space:]]*['"](.+)['"],*$/
       words = $1.split
       words.each do |word|
-        if whitelist.include?(word)
+        if TITLE_WHITELIST.include?(word)
           next
         elsif word =~ /^[a-z]+$/
           warn("Suspect capitalization in module title: '#{word}'")
@@ -449,7 +477,7 @@ class Msftidy
     src_ended  = false
     idx        = 0
 
-    @source.each_line { |ln|
+    @lines.each do |ln|
       idx += 1
 
       # block comment awareness
@@ -503,7 +531,7 @@ class Msftidy
       end
 
       # The rest of these only count if it's not a comment line
-      next if ln =~ /[[:space:]]*#/
+      next if ln =~ /^[[:space:]]*#/
 
       if ln =~ /\$std(?:out|err)/i or ln =~ /[[:space:]]puts/
         next if ln =~ /^[\s]*["][^"]+\$std(?:out|err)/
@@ -511,16 +539,8 @@ class Msftidy
         error("Writes to stdout", idx)
       end
 
-      # You should not change datastore in code. For reasons. See
-      # RM#8498 for discussion, starting at comment #16:
-      #
-      # https://dev.metasploit.com/redmine/issues/8498#note-16
-      if ln =~ /(?<!\.)datastore\[["'][^"']+["']\]\s*=(?![=~>])/
-        info("datastore is modified in code: #{ln}", idx)
-      end
-
       # do not read Set-Cookie header (ignore commented lines)
-      if ln =~ /^(?!\s*#).+\[['"]Set-Cookie['"]\]/i
+      if ln =~ /^(?!\s*#).+\[['"]Set-Cookie['"]\](?!\s*=[^=~]+)/i
         warn("Do not read Set-Cookie header directly, use res.get_cookies instead: #{ln}", idx)
       end
 
@@ -528,7 +548,22 @@ class Msftidy
       if ln =~ /^\s*Rank\s*=\s*/ and @source =~ /<\sMsf::Auxiliary/
         warn("Auxiliary modules have no 'Rank': #{ln}", idx)
       end
-    }
+
+      if ln =~ /^\s*def\s+(?:[^\(\)#]*[A-Z]+[^\(\)]*)(?:\(.*\))?$/
+        warn("Please use snake case on method names: #{ln}", idx)
+      end
+
+      if ln =~ /^\s*fail_with\(/
+        unless ln =~ /^\s*fail_with\(Failure\:\:(?:None|Unknown|Unreachable|BadConfig|Disconnected|NotFound|UnexpectedReply|TimeoutExpired|UserInterrupt|NoAccess|NoTarget|NotVulnerable|PayloadFailed),/
+          error("fail_with requires a valid Failure:: reason as first parameter: #{ln}", idx)
+        end
+      end
+
+      if ln =~ /['"]ExitFunction['"]\s*=>/
+        warn("Please use EXITFUNC instead of ExitFunction #{ln}", idx)
+      end
+
+    end
   end
 
   def check_vuln_codes
@@ -562,6 +597,46 @@ class Msftidy
   def check_udp_sock_get
     if @source =~ /udp_sock\.get/m && @source !~ /udp_sock\.get\([a-zA-Z0-9]+/
       info('Please specify a timeout to udp_sock.get')
+    end
+  end
+
+  # At one point in time, somebody committed a module with a bad metasploit.com URL
+  # in the header -- http//metasploit.com/download rather than http://metasploit.com/download.
+  # This module then got copied and committed 20+ times and is used in numerous other places.
+  # This ensures that this stops.
+  def check_invalid_url_scheme
+    test = @source.scan(/^#.+http\/\/(?:www\.)?metasploit.com/)
+    unless test.empty?
+      test.each { |item|
+        info("Invalid URL: #{item}")
+      }
+    end
+  end
+
+  # Check for (v)print_debug usage, since it doesn't exist anymore
+  #
+  # @see https://github.com/rapid7/metasploit-framework/issues/3816
+  def check_print_debug
+    if @source =~ /print_debug/
+      error('Please don\'t use (v)print_debug, use vprint_(status|good|error|warning) instead')
+    end
+  end
+
+  # Check for modules registering the DEBUG datastore option
+  #
+  # @see https://github.com/rapid7/metasploit-framework/issues/3816
+  def check_register_datastore_debug
+    if @source =~ /Opt.*\.new\(["'](?i)DEBUG(?-i)["']/
+      error('Please don\'t register a DEBUG datastore option, it has an special meaning and is used for development')
+    end
+  end
+
+  # Check for modules using the DEBUG datastore option
+  #
+  # @see https://github.com/rapid7/metasploit-framework/issues/3816
+  def check_use_datastore_debug
+    if @source =~ /datastore\[["'](?i)DEBUG(?-i)["']\]/
+      error('Please don\'t use the DEBUG datastore option in production, it has an special meaning and is used for development')
     end
   end
 
@@ -611,9 +686,12 @@ def run_checks(full_filepath)
   tidy.check_vuln_codes
   tidy.check_vars_get
   tidy.check_newline_eof
-  tidy.check_rubocop
   tidy.check_sock_get
   tidy.check_udp_sock_get
+  tidy.check_invalid_url_scheme
+  tidy.check_print_debug
+  tidy.check_register_datastore_debug
+  tidy.check_use_datastore_debug
   return tidy
 end
 

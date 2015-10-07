@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -33,7 +33,7 @@ class Metasploit3 < Msf::Auxiliary
         ],
       'Author'         =>
         [
-          'xistence'  #Vulnerability discovery and Metasploit module
+          'xistence'  # Vulnerability discovery and Metasploit module
         ],
       'License'        => MSF_LICENSE,
       'DisclosureDate' => "Jan 28 2014"

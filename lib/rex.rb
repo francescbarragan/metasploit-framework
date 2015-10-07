@@ -1,8 +1,9 @@
+# -*- coding: binary -*-
 =begin
 
 The Metasploit Rex library is provided under the 3-clause BSD license.
 
-Copyright (c) 2005-2010, Rapid7, Inc.
+Copyright (c) 2005-2014, Rapid7, Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -41,6 +42,7 @@ end
 require 'rex/constants'
 require 'rex/exceptions'
 require 'rex/transformer'
+require 'rex/random_identifier_generator'
 require 'rex/text'
 require 'rex/time'
 require 'rex/job_container'

