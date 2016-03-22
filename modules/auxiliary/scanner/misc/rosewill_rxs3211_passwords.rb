@@ -6,7 +6,7 @@
 
 require 'msf/core'
 
-class Metasploit3 < Msf::Auxiliary
+class MetasploitModule < Msf::Auxiliary
 
   include Msf::Exploit::Remote::Tcp
   include Msf::Auxiliary::Report
@@ -23,10 +23,6 @@ class Metasploit3 < Msf::Auxiliary
         The protocol deisgn issue also allows attackers to reset passwords on the device.
       },
       'Author'      => 'Ben Schmidt',
-      'References'  =>
-        [
-          [ 'URL', 'http://spareclockcycles.org/exploiting-an-ip-camera-control-protocol/' ],
-        ],
       'License'     => MSF_LICENSE
     )
 

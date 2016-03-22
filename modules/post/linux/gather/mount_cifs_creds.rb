@@ -5,7 +5,7 @@
 
 require 'msf/core'
 
-class Metasploit3 < Msf::Post
+class MetasploitModule < Msf::Post
 
   include Msf::Post::File
 
@@ -115,7 +115,6 @@ class Metasploit3 < Msf::Post
       username: opts[:user],
       private_data: opts[:password],
       private_type: :password,
-      module_fullname: fullname,
       session_id: session_db_id,
       post_reference_name: self.refname
     }.merge(service_data)

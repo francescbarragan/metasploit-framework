@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe 'modules/payloads', :content do
+RSpec.describe 'modules/payloads', :content do
   modules_pathname = Pathname.new(__FILE__).parent.parent.parent.join('modules')
 
   include_context 'untested payloads', modules_pathname: modules_pathname
@@ -1637,14 +1637,14 @@ describe 'modules/payloads', :content do
                           reference_name: 'linux/x86/shell_reverse_tcp'
   end
 
-  context 'linux/x86/shell_reverse_tcp2' do
+  context 'mainframe/shell_reverse_tcp' do
     it_should_behave_like 'payload cached size is consistent',
                           ancestor_reference_names: [
-                              'singles/linux/x86/shell_reverse_tcp2'
+                            'singles/mainframe/shell_reverse_tcp'
                           ],
                           dynamic_size: false,
                           modules_pathname: modules_pathname,
-                          reference_name: 'linux/x86/shell_reverse_tcp2'
+                          reference_name: 'mainframe/shell_reverse_tcp'
   end
 
   context 'netware/shell/reverse_tcp' do
@@ -2243,6 +2243,46 @@ describe 'modules/payloads', :content do
                           dynamic_size: false,
                           modules_pathname: modules_pathname,
                           reference_name: 'python/meterpreter/reverse_tcp_uuid'
+  end
+
+  context 'python/meterpreter_bind_tcp' do
+    it_should_behave_like 'payload cached size is consistent',
+                          ancestor_reference_names: [
+                              'singles/python/meterpreter_bind_tcp'
+                          ],
+                          dynamic_size: false,
+                          modules_pathname: modules_pathname,
+                          reference_name: 'python/meterpreter_bind_tcp'
+  end
+
+  context 'python/meterpreter_reverse_http' do
+    it_should_behave_like 'payload cached size is consistent',
+                          ancestor_reference_names: [
+                              'singles/python/meterpreter_reverse_http'
+                          ],
+                          dynamic_size: false,
+                          modules_pathname: modules_pathname,
+                          reference_name: 'python/meterpreter_reverse_http'
+  end
+
+  context 'python/meterpreter_reverse_https' do
+    it_should_behave_like 'payload cached size is consistent',
+                          ancestor_reference_names: [
+                              'singles/python/meterpreter_reverse_https'
+                          ],
+                          dynamic_size: false,
+                          modules_pathname: modules_pathname,
+                          reference_name: 'python/meterpreter_reverse_https'
+  end
+
+  context 'python/meterpreter_reverse_tcp' do
+    it_should_behave_like 'payload cached size is consistent',
+                          ancestor_reference_names: [
+                              'singles/python/meterpreter_reverse_tcp'
+                          ],
+                          dynamic_size: false,
+                          modules_pathname: modules_pathname,
+                          reference_name: 'python/meterpreter_reverse_tcp'
   end
 
   context 'python/shell_reverse_tcp' do

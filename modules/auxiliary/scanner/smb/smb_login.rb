@@ -7,7 +7,7 @@ require 'msf/core'
 require 'metasploit/framework/login_scanner/smb'
 require 'metasploit/framework/credential_collection'
 
-class Metasploit3 < Msf::Auxiliary
+class MetasploitModule < Msf::Auxiliary
 
   include Msf::Exploit::Remote::DCERPC
   include Msf::Exploit::Remote::SMB::Client
@@ -85,7 +85,6 @@ class Metasploit3 < Msf::Auxiliary
       smb_native_os: datastore['SMB::Native_OS'],
       smb_native_lm: datastore['SMB::Native_LM'],
       send_spn: datastore['NTLM::SendSPN'],
-      host: ip
     )
 
     bogus_result = @scanner.attempt_bogus_login(domain)
