@@ -229,7 +229,7 @@ module Msf::DBManager::Import
     end
 
     # This is a text string, lets make sure its treated as binary
-    data = data.unpack("C*").pack("C*")
+    data.force_encoding(Encoding::ASCII_8BIT)
     if data and data.to_s.strip.length == 0
       raise Msf::DBImportError.new("The data provided to the import function was empty")
     end
@@ -254,6 +254,9 @@ module Msf::DBManager::Import
     elsif (firstline.index("<scanJob>"))
       @import_filedata[:type] = "Retina XML"
       return :retina_xml
+    elsif (firstline.index(/<get_results_response status=['"]200['"] status_text=['"]OK['"]>/))
+      @import_filedata[:type] = "OpenVAS XML"
+      return :openvas_new_xml
     elsif (firstline.index(/<get_reports_response status=['"]200['"] status_text=['"]OK['"]>/))
       @import_filedata[:type] = "OpenVAS XML"
       return :openvas_new_xml
@@ -286,7 +289,7 @@ module Msf::DBManager::Import
           @import_filedata[:type] = "Nmap XML"
           return :nmap_xml
         when "openvas-report"
-          @import_filedata[:type] = "OpenVAS Report"
+          @import_filedata[:type] = "OpenVAS"
           return :openvas_xml
         when "NessusClientData"
           @import_filedata[:type] = "Nessus XML (v1)"
