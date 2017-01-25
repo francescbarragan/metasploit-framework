@@ -25,6 +25,7 @@ class MetasploitModule < Msf::Auxiliary
     'License'        => MSF_LICENSE
     ))
 
+    deregister_options('HttpUsername', 'HttpPassword')
   end
 
   def run_host(ip)
@@ -57,7 +58,7 @@ class MetasploitModule < Msf::Auxiliary
       return false
     end
 
-    if (res and res.code == 200 and res.headers['Server'].include?("EtherPAD") and res.body.include?("EtherPAD Duo"))
+    if (res and res.code == 200 and res.headers['Server'] =~ /EtherPAD/ and res.body.include?("EtherPAD Duo"))
       vprint_good("Running EtherPAD Duo application ...")
       return true
     else

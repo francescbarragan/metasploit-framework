@@ -3,7 +3,7 @@ require 'rex/io/stream_abstraction'
 require 'rex/sync/ref'
 require 'rex/payloads/meterpreter/uri_checksum'
 require 'rex/post/meterpreter'
-require 'rex/parser/x509_certificate'
+require 'rex/socket/x509_certificate'
 require 'msf/core/payload/windows/verify_ssl'
 require 'rex/user_agent'
 
@@ -117,7 +117,15 @@ module ReverseHttp
       callback_host = "[#{callback_host}]"
     end
 
-    "#{scheme}://#{callback_host}:#{callback_port}"
+    if callback_host.nil?
+      raise ArgumentError, "No host specified for payload_uri"
+    end
+
+    if callback_port
+      "#{scheme}://#{callback_host}:#{callback_port}"
+    else
+      "#{scheme}://#{callback_host}"
+    end
   end
 
   # Use the #refname to determine whether this handler uses SSL or not
@@ -142,12 +150,12 @@ module ReverseHttp
 
     if l && l.length > 0
       # strip trailing slashes
-      while l[-1] == '/'
+      while l[-1, 1] == '/'
         l = l[0...-1]
       end
 
       # make sure the luri has the prefix
-      if l[0] != '/'
+      if l[0, 1] != '/'
         l = "/#{l}"
       end
 
@@ -192,7 +200,7 @@ module ReverseHttp
     self.service.server_name = datastore['MeterpreterServerName']
 
     # Add the new resource
-    service.add_resource(luri + "/",
+    service.add_resource((luri + "/").gsub("//", "/"),
       'Proc' => Proc.new { |cli, req|
         on_request(cli, req)
       },
@@ -212,7 +220,7 @@ module ReverseHttp
   #
   def stop_handler
     if self.service
-      self.service.remove_resource(luri + "/")
+      self.service.remove_resource((luri + "/").gsub("//", "/"))
       if self.service.resources.empty? && self.sessions == 0
         Rex::ServiceManager.stop_service(self.service)
       end
@@ -317,77 +325,31 @@ protected
         pkt.add_tlv(Rex::Post::Meterpreter::TLV_TYPE_TRANS_URL, conn_id + "/")
         resp.body = pkt.to_r
 
-      when :init_python
-        print_status("Staging Python payload...")
+      when :init_python, :init_native, :init_java
+        # TODO: at some point we may normalise these three cases into just :init
         url = payload_uri(req) + conn_id + '/'
 
-        blob = ""
-        blob << self.generate_stage(
-          http_url: url,
-          http_user_agent: datastore['MeterpreterUserAgent'],
-          http_proxy_host: datastore['PayloadProxyHost'] || datastore['PROXYHOST'],
-          http_proxy_port: datastore['PayloadProxyPort'] || datastore['PROXYPORT'],
-          uuid: uuid,
-          uri:  conn_id
-        )
-
-        resp.body = blob
-
-        # Short-circuit the payload's handle_connection processing for create_session
-        create_session(cli, {
-          :passive_dispatcher => self.service,
-          :conn_id            => conn_id,
-          :url                => url,
-          :expiration         => datastore['SessionExpirationTimeout'].to_i,
-          :comm_timeout       => datastore['SessionCommunicationTimeout'].to_i,
-          :retry_total        => datastore['SessionRetryTotal'].to_i,
-          :retry_wait         => datastore['SessionRetryWait'].to_i,
-          :ssl                => ssl?,
-          :payload_uuid       => uuid
-        })
-
-      when :init_java
-        print_status("Staging Java payload...")
-        url = payload_uri(req) + conn_id + "/\x00"
-
-        blob = self.generate_stage(
-          uuid: uuid,
-          uri:  conn_id
-        )
-
-        resp.body = blob
-
-        # Short-circuit the payload's handle_connection processing for create_session
-        create_session(cli, {
-          :passive_dispatcher => self.service,
-          :conn_id            => conn_id,
-          :url                => url,
-          :expiration         => datastore['SessionExpirationTimeout'].to_i,
-          :comm_timeout       => datastore['SessionCommunicationTimeout'].to_i,
-          :retry_total        => datastore['SessionRetryTotal'].to_i,
-          :retry_wait         => datastore['SessionRetryWait'].to_i,
-          :ssl                => ssl?,
-          :payload_uuid       => uuid
-        })
-
-      when :init_native
-        print_status("Staging Native payload...")
-        url = payload_uri(req) + conn_id + "/\x00"
+        # Damn you, python! Ruining my perfect world!
+        url += "\x00" unless uuid.arch == ARCH_PYTHON
         uri = URI(payload_uri(req) + conn_id)
 
-        resp['Content-Type'] = 'application/octet-stream'
+        # TODO: does this have to happen just for windows, or can we set it for all?
+        resp['Content-Type'] = 'application/octet-stream' if uuid.platform == 'windows'
 
         begin
-          # generate the stage, but pass in the existing UUID and connection id so that
-          # we don't get new ones generated.
-          blob = self.stage_payload(
-            uuid: uuid,
-            uri:  conn_id,
+          blob = self.generate_stage(
+            url:   url,
+            uuid:  uuid,
             lhost: uri.host,
-            lport: uri.port
+            lport: uri.port,
+            uri:   conn_id
           )
 
-          resp.body = encode_stage(blob)
+          blob = encode_stage(blob) if self.respond_to?(:encode_stage)
+
+          print_status("Staging #{uuid.arch} payload (#{blob.length} bytes) ...")
+
+          resp.body = blob
 
           # Short-circuit the payload's handle_connection processing for create_session
           create_session(cli, {
@@ -414,13 +376,14 @@ protected
         url = payload_uri(req) + conn_id
         url << '/' unless url[-1] == '/'
 
-        p url
+        # Damn you, python! Ruining my perfect world!
+        url += "\x00" unless uuid.arch == ARCH_PYTHON
 
         # Short-circuit the payload's handle_connection processing for create_session
         create_session(cli, {
           :passive_dispatcher => self.service,
           :conn_id            => conn_id,
-          :url                => url + "\x00",
+          :url                => url,
           :expiration         => datastore['SessionExpirationTimeout'].to_i,
           :comm_timeout       => datastore['SessionCommunicationTimeout'].to_i,
           :retry_total        => datastore['SessionRetryTotal'].to_i,
@@ -433,7 +396,9 @@ protected
         unless [:unknown_uuid, :unknown_uuid_url].include?(info[:mode])
           print_status("Unknown request to #{request_summary}")
         end
-        resp = nil
+        resp.code    = 200
+        resp.message = 'OK'
+        resp.body    = datastore['HttpUnknownRequestResponse'].to_s
         self.pending_connections -= 1
     end
 

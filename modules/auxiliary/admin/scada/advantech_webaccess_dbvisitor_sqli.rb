@@ -14,7 +14,7 @@ class MetasploitModule < Msf::Auxiliary
 
   def initialize(info = {})
     super(update_info(info,
-      'Name'           => 'Advantech WebAccess SQL Injection',
+      'Name'           => 'Advantech WebAccess DBVisitor.dll ChartThemeConfig SQL Injection',
       'Description'    => %q{
         This module exploits a SQL injection vulnerability found in Advantech WebAccess 7.1. The
         vulnerability exists in the DBVisitor.dll component, and can be abused through malicious
@@ -151,7 +151,7 @@ class MetasploitModule < Msf::Auxiliary
       print_good("#{@users.length} users found!")
     end
 
-    users_table = Rex::Ui::Text::Table.new(
+    users_table = Rex::Text::Table.new(
       'Header'  => 'Advantech WebAccess Users',
       'Indent'   => 1,
       'Columns' => ['Username', 'Encrypted Password', 'Key', 'Recovered password', 'Origin']

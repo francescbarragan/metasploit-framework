@@ -83,8 +83,13 @@ module Interactive
       self.completed = true
     end
 
-    # Return whether or not EOF was reached
-    return eof
+    # if another session was requested, store it
+    next_session = self.next_session
+    # clear the value from the object
+    self.next_session = nil
+
+    # return this session id
+    return next_session
   end
 
   #
@@ -103,6 +108,11 @@ module Interactive
   # Whether or not the session is currently being interacted with
   #
   attr_accessor   :interacting
+
+  #
+  # If another session needs interaction, this is where it goes
+  #
+  attr_accessor   :next_session
 
   #
   # Whether or not the session has completed interaction
@@ -185,7 +195,7 @@ protected
   # writing it to the other.  Both are expected to implement Rex::IO::Stream.
   #
   def interact_stream(stream)
-    while self.interacting
+    while self.interacting && _remote_fd(stream)
 
       # Select input and rstream
       sd = Rex::ThreadSafe.select([ _local_fd, _remote_fd(stream) ], nil, nil, 0.25)

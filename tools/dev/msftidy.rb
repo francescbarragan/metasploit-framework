@@ -178,8 +178,6 @@ class Msftidy
         case identifier
         when 'CVE'
           warn("Invalid CVE format: '#{value}'") if value !~ /^\d{4}\-\d{4,}$/
-        when 'OSVDB'
-          warn("Invalid OSVDB format: '#{value}'") if value !~ /^\d+$/
         when 'BID'
           warn("Invalid BID format: '#{value}'") if value !~ /^\d+$/
         when 'MSB'
@@ -197,9 +195,7 @@ class Msftidy
         when 'PACKETSTORM'
           warn("Invalid PACKETSTORM reference") if value !~ /^\d+$/
         when 'URL'
-          if value =~ /^http:\/\/www\.osvdb\.org/
-            warn("Please use 'OSVDB' for '#{value}'")
-          elsif value =~ /^http:\/\/cvedetails\.com\/cve/
+          if value =~ /^http:\/\/cvedetails\.com\/cve/
             warn("Please use 'CVE' for '#{value}'")
           elsif value =~ /^http:\/\/www\.securityfocus\.com\/bid\//
             warn("Please use 'BID' for '#{value}'")
@@ -422,6 +418,8 @@ class Msftidy
       if not available_ranks.include?($1)
         error("Invalid ranking. You have '#{$1}'")
       end
+    else
+      info('No Rank specified. The default is NormalRanking. Please add an explicit Rank value.')
     end
   end
 
@@ -686,6 +684,15 @@ class Msftidy
     end
   end
 
+  # Check for modules using the deprecated architectures
+  #
+  # @see https://github.com/rapid7/metasploit-framework/pull/7507
+  def check_arch
+    if @source =~ /ARCH_X86_64/
+      error('Please don\'t use the ARCH_X86_64 architecture, use ARCH_X64 instead')
+    end
+  end
+
   #
   # Run all the msftidy checks.
   #
@@ -719,6 +726,7 @@ class Msftidy
     check_print_debug
     check_register_datastore_debug
     check_use_datastore_debug
+    check_arch
   end
 
   private

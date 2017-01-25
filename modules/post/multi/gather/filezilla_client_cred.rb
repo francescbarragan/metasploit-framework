@@ -30,13 +30,14 @@ class MetasploitModule < Msf::Post
   def run
     paths = []
     case session.platform
-    when /unix|linux|bsd/
+    when 'unix', 'linux', 'bsd'
       @platform = :unix
       paths = enum_users_unix
-    when /osx/
+    when 'osx'
       @platform = :osx
       paths = enum_users_unix
-    when /win/
+    when 'windows'
+      @platform = :windows
       profiles = grab_user_profiles()
       profiles.each do |user|
         next if user['AppData'] == nil
@@ -120,7 +121,7 @@ class MetasploitModule < Msf::Post
       origin_type: :session,
       private_data: opts[:password],
       private_type: :password,
-      username: opts[:user]
+      username: opts[:username]
     }.merge(service_data)
 
     login_data = {

@@ -46,7 +46,7 @@ class ReadableText
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
   def self.dump_exploit_targets(mod, indent = '', h = nil)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
       'Columns' =>
@@ -70,7 +70,7 @@ class ReadableText
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
   def self.dump_exploit_target(mod, indent = '', h = nil)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
       'Columns' =>
@@ -92,7 +92,7 @@ class ReadableText
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
   def self.dump_module_actions(mod, indent = '', h = nil)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
       'Columns' =>
@@ -116,7 +116,7 @@ class ReadableText
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
   def self.dump_module_action(mod, indent = '', h = nil)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
       'Columns' =>
@@ -139,7 +139,7 @@ class ReadableText
   # @param h [String] the string to display as the table heading.
   # @return [String] the string form of the table.
   def self.dump_compatible_payloads(exploit, indent = '', h = nil)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Header'  => h,
       'Columns' =>
@@ -390,7 +390,7 @@ class ReadableText
   # @param missing [Boolean] dump only empty required options.
   # @return [String] the string form of the information.
   def self.dump_options(mod, indent = '', missing = false)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Columns' =>
         [
@@ -401,13 +401,29 @@ class ReadableText
         ])
 
     mod.options.sorted.each do |name, opt|
-      val = mod.datastore[name] || opt.default
+      val = mod.datastore[name].nil? ? opt.default : mod.datastore[name]
 
       next if (opt.advanced?)
       next if (opt.evasion?)
       next if (missing && opt.valid?(val))
 
-      tbl << [ name, opt.display_value(val), opt.required? ? "yes" : "no", opt.desc ]
+      desc = opt.desc.dup
+
+      # Hint at RPORT proto by regexing mixins
+      if name == 'RPORT' && opt.kind_of?(Msf::OptPort)
+        mod.class.included_modules.each do |m|
+          case m.name
+          when /tcp/i, /HttpClient$/
+            desc << ' (TCP)'
+            break
+          when /udp/i
+            desc << ' (UDP)'
+            break
+          end
+        end
+      end
+
+      tbl << [ name, opt.display_value(val), opt.required? ? "yes" : "no", desc ]
     end
 
     return tbl.to_s
@@ -419,7 +435,7 @@ class ReadableText
   # @param indent [String] the indentation to use.
   # @return [String] the string form of the information.
   def self.dump_advanced_options(mod, indent = '')
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Columns' =>
         [
@@ -431,7 +447,7 @@ class ReadableText
 
     mod.options.sorted.each do |name, opt|
       next unless opt.advanced?
-      val = mod.datastore[name] || opt.default
+      val = mod.datastore[name].nil? ? opt.default : mod.datastore[name]
       tbl << [ name, opt.display_value(val), opt.required? ? "yes" : "no", opt.desc ]
     end
 
@@ -444,7 +460,7 @@ class ReadableText
   # @param indent [String] the indentation to use.
   # @return [String] the string form of the information.
   def self.dump_evasion_options(mod, indent = '')
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent.length,
       'Columns' =>
         [
@@ -456,7 +472,7 @@ class ReadableText
 
     mod.options.sorted.each do |name, opt|
       next unless opt.evasion?
-      val = mod.datastore[name] || opt.default
+      val = mod.datastore[name].nil? ? opt.default : mod.datastore[name]
       tbl << [ name, opt.display_value(val), opt.required? ? "yes" : "no", opt.desc ]
     end
 
@@ -490,7 +506,7 @@ class ReadableText
   # @param col [Integer] the column width.
   # @return [String] the formatted DataStore contents.
   def self.dump_datastore(name, ds, indent = DefaultIndent, col = DefaultColumnWrap)
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent,
       'Header'  => name,
       'Columns' =>
@@ -529,7 +545,7 @@ class ReadableText
     columns << 'Information'
     columns << 'Connection'
 
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent,
       'Header'  => "Active sessions",
       'Columns' => columns)
@@ -546,7 +562,11 @@ class ReadableText
       row = []
       row << session.sid.to_s
       row << session.type.to_s
-      row[-1] << (" " + session.platform) if session.respond_to?(:platform)
+      if session.respond_to?(:session_type)
+        row[-1] << (" " + session.session_type)
+      elsif session.respond_to?(:platform)
+        row[-1] << (" " + session.platform)
+      end
 
       if show_extended
         if session.respond_to?(:last_checkin) && session.last_checkin
@@ -653,7 +673,7 @@ class ReadableText
       columns += [ "URIPATH", "Start Time", "Handler opts" ]
     end
 
-    tbl = Rex::Ui::Text::Table.new(
+    tbl = Rex::Text::Table.new(
       'Indent'  => indent,
       'Header'  => "Jobs",
       'Columns' => columns
@@ -670,6 +690,7 @@ class ReadableText
       row[1] = framework.jobs[job_id].name
 
       pinst = exploit_mod.respond_to?(:payload_instance) ? exploit_mod.payload_instance : nil
+      payload_uri = ''
 
       if pinst.nil?
         row[2] = ""
@@ -678,7 +699,8 @@ class ReadableText
         row[2] = pinst.refname
         row[3] = ""
         if pinst.respond_to?(:payload_uri)
-          row[3] << pinst.payload_uri
+          payload_uri = pinst.payload_uri.strip
+          row[3] << payload_uri
         end
         if pinst.respond_to?(:luri)
           row[3] << pinst.luri
@@ -690,7 +712,12 @@ class ReadableText
         uripath ||= exploit_mod.datastore['URIPATH']
         row[4] = uripath
         row[5] = framework.jobs[job_id].start_time
-        row[6] = pinst.respond_to?(:listener_uri) ? pinst.listener_uri : ""
+        row[6] = ''
+
+        if pinst.respond_to?(:listener_uri)
+          listener_uri = pinst.listener_uri.strip
+          row[6] = listener_uri unless listener_uri == payload_uri
+        end
       end
       tbl << row
     end
